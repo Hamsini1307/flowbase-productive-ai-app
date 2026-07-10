@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import {
@@ -22,6 +22,8 @@ import {
 
 import { CalendarPage } from "@/components/calendar-page";
 import { KanbanPage } from "@/components/kanban-page";
+import { KanbanSkeleton, CalendarSkeleton } from "@/components/loading-skeletons";
+import { NotesPage } from "@/components/notes-page";
 import { cn } from "@/lib/utils";
 
 const menuGroups = [
@@ -69,6 +71,67 @@ const kanban = [
 export function DashboardShell() {
   const [collapsed, setCollapsed] = React.useState(false);
   const [activePage, setActivePage] = React.useState("Dashboard");
+
+  // Shared states lifted for sync, duplicate prevention, and zero-latency tab switching
+  const [boards, setBoards] = React.useState<any[]>([]);
+  const [activeBoardId, setActiveBoardId] = React.useState<string>("");
+  const [boardsLoading, setBoardsLoading] = React.useState(true);
+  
+  const [tasks, setTasks] = React.useState<any[]>([]);
+  const [tasksLoading, setTasksLoading] = React.useState(true);
+
+  // Track activeBoardId in a ref to avoid re-triggering the prefetch callback when the first board loads
+  const activeBoardIdRef = React.useRef(activeBoardId);
+  React.useEffect(() => {
+    activeBoardIdRef.current = activeBoardId;
+  }, [activeBoardId]);
+
+  const refreshData = React.useCallback(async () => {
+    try {
+      // Parallel loading of boards and tasks
+      const [boardsRes, tasksRes] = await Promise.all([
+        fetch("/api/kanban-boards"),
+        fetch("/api/tasks"),
+      ]);
+
+      const [boardsData, tasksData] = await Promise.all([
+        boardsRes.json(),
+        tasksRes.json(),
+      ]);
+
+      if (boardsData.boards) {
+        setBoards(boardsData.boards);
+        if (boardsData.boards.length > 0 && !activeBoardIdRef.current) {
+          setActiveBoardId(boardsData.boards[0].id);
+        }
+      }
+      
+      if (tasksData.tasks) {
+        setTasks(tasksData.tasks);
+      }
+    } catch (err) {
+      console.error("Failed to prefetch boards and tasks:", err);
+    } finally {
+      setBoardsLoading(false);
+      setTasksLoading(false);
+    }
+  }, []);
+
+  const refreshTasks = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks");
+      const data = await res.json();
+      if (data.tasks) {
+        setTasks(data.tasks);
+      }
+    } catch (err) {
+      console.error("Failed to refresh tasks:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   React.useEffect(() => {
     const query = window.matchMedia("(max-width: 760px)");
@@ -187,9 +250,25 @@ export function DashboardShell() {
           </header>
 
           {activePage === "Calendar" ? (
-            <CalendarPage />
+            <CalendarPage
+              sharedTasks={tasks}
+              sharedTasksLoading={tasksLoading}
+              onTasksChange={setTasks}
+              refreshTasks={refreshTasks}
+            />
           ) : activePage === "Task / Kanban" ? (
-            <KanbanPage />
+            <KanbanPage
+              sharedBoards={boards}
+              sharedBoardsLoading={boardsLoading}
+              activeBoardId={activeBoardId}
+              setActiveBoardId={setActiveBoardId}
+              onBoardsChange={setBoards}
+              sharedTasks={tasks}
+              sharedTasksLoading={tasksLoading}
+              onTasksChange={setTasks}
+            />
+          ) : activePage === "Notes" ? (
+            <NotesPage />
           ) : (
             <div className="grid gap-5 p-5 lg:grid-cols-[1.25fr_0.75fr]">
               <section className="rounded-lg border border-[#d6e7df] bg-[#fbfff8] p-5 shadow-sm">

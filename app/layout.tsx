@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import "./globals.css";
 import type { Metadata } from "next";
 import { syncCurrentUser } from '@/lib/sync-user';
+import { LiveblocksProviderWrapper } from "@/components/providers/liveblocks-provider";
 
 export const metadata: Metadata = {
   title: "Flowbase Productivity Workspace",
@@ -19,9 +20,12 @@ export default async function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body>
-          {children}
+          <LiveblocksProviderWrapper>
+            {children}
+          </LiveblocksProviderWrapper>
         </body>
       </html>
     </ClerkProvider>
   );
 }
+

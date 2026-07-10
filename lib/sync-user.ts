@@ -30,6 +30,8 @@ export async function syncCurrentUser() {
     .where(or(eq(users.clerkId, user.id), eq(users.email, email)))
     .limit(1);
 
+  const { setCachedUser } = await import("@/lib/user-cache");
+
   if (existingUser) {
     const [savedUser] = await db
       .update(users)
@@ -37,6 +39,7 @@ export async function syncCurrentUser() {
       .where(eq(users.id, existingUser.id))
       .returning();
 
+    setCachedUser(user.id, savedUser);
     return savedUser;
   }
 
@@ -45,5 +48,6 @@ export async function syncCurrentUser() {
     .values(profile)
     .returning();
 
+  setCachedUser(user.id, savedUser);
   return savedUser;
 }

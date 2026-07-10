@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CalendarSkeleton } from "./loading-skeletons";
 
 type CalendarView = "month" | "week";
 type TaskCategory = "Work" | "Personal" | "Focus" | "Meeting" | "Reminder";
@@ -153,20 +154,68 @@ function createInitialTasks(today: Date): CalendarTask[] {
   ];
 }
 
-export function CalendarPage() {
+export function CalendarPage({
+  sharedTasks,
+  sharedTasksLoading,
+  onTasksChange,
+  refreshTasks,
+}: {
+  sharedTasks?: any[];
+  sharedTasksLoading?: boolean;
+  onTasksChange?: React.Dispatch<React.SetStateAction<any[]>>;
+  refreshTasks?: () => Promise<void>;
+} = {}) {
   const today = React.useMemo(() => new Date(), []);
   const todayKey = toDateKey(today);
   const [calendarView, setCalendarView] = React.useState<CalendarView>("month");
   const [anchorDate, setAnchorDate] = React.useState(() => new Date(today.getFullYear(), today.getMonth(), today.getDate()));
-  const [tasks, setTasks] = React.useState<CalendarTask[]>(() => createInitialTasks(today));
+  const [localRawTasks, setLocalRawTasks] = React.useState<any[]>([]);
+  const [localLoading, setLocalLoading] = React.useState(true);
   const [draggingTaskId, setDraggingTaskId] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<TaskForm>(() => emptyTaskForm(todayKey));
 
+  const tasks = React.useMemo(() => {
+    const rawTasks = sharedTasks !== undefined ? sharedTasks : localRawTasks;
+    return rawTasks.map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      category: t.category || "Work",
+      taskType: t.taskType || "Task",
+      color: t.labelColor || "#6257f6",
+      date: t.dueDate || t.date || "",
+      time: t.time || "",
+      notes: t.description || t.notes || "",
+      status: t.status || "scheduled",
+      boardId: t.boardId,
+      columnId: t.columnId,
+    }));
+  }, [sharedTasks, localRawTasks]);
+
+  const loading = sharedTasksLoading !== undefined ? sharedTasksLoading : localLoading;
+
+  React.useEffect(() => {
+    if (sharedTasks !== undefined) return;
+    async function loadTasks() {
+      try {
+        const res = await fetch("/api/tasks");
+        const data = await res.json();
+        if (data.tasks) {
+          setLocalRawTasks(data.tasks);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLocalLoading(false);
+      }
+    }
+    void loadTasks();
+  }, [sharedTasks]);
+
   const visibleDays = calendarView === "month" ? getMonthDays(anchorDate) : getWeekDays(anchorDate);
-  const scheduledTasks = tasks.filter((task) => task.status === "scheduled" && task.date);
-  const draftTasks = tasks.filter((task) => task.status === "draft");
+  const scheduledTasks = tasks.filter((task) => task.date);
+  const draftTasks = tasks.filter((task) => !task.date);
   const calendarTitle = calendarView === "month" ? formatMonth(anchorDate) : `${formatMonth(visibleDays[0])} week`;
 
   const closeDialog = () => {
@@ -194,65 +243,157 @@ export function CalendarPage() {
     setDialogOpen(true);
   };
 
-  const saveTask = (status: TaskStatus) => {
+  const saveTask = async (status: TaskStatus) => {
     if (!form.title.trim()) return;
 
     const category = getCategory(form.category);
     const date = status === "scheduled" ? form.date || todayKey : undefined;
 
-    setTasks((currentTasks) => [
-      ...currentTasks,
-      {
-        id: `task-${crypto.randomUUID()}`,
-        title: form.title.trim(),
-        category: form.category,
-        taskType: form.taskType,
-        color: category.color,
-        date,
-        time: form.time,
-        notes: form.notes.trim(),
-        status,
-      },
-    ]);
-    closeDialog();
+    const newTaskPayload = {
+      id: `task-${crypto.randomUUID()}`,
+      title: form.title.trim(),
+      category: form.category,
+      taskType: form.taskType,
+      labelColor: category.color,
+      dueDate: date,
+      time: form.time,
+      description: form.notes.trim(),
+      notes: form.notes.trim(),
+      status,
+      syncCalendar: status === "scheduled",
+    };
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTaskPayload),
+      });
+      if (!res.ok) throw new Error("Failed to create task");
+      const data = await res.json();
+
+      if (onTasksChange && sharedTasks) {
+        onTasksChange([...sharedTasks, data.task]);
+      } else {
+        setLocalRawTasks((current) => [...current, data.task]);
+      }
+      closeDialog();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const updateTask = (status?: TaskStatus) => {
+  const updateTask = async (status?: TaskStatus) => {
     if (!editingTaskId || !form.title.trim()) return;
 
     const category = getCategory(form.category);
-    setTasks((currentTasks) =>
-      currentTasks.map((task) => {
-        if (task.id !== editingTaskId) return task;
+    const nextStatus = status ?? tasks.find((t) => t.id === editingTaskId)?.status ?? "scheduled";
+    const date = nextStatus === "scheduled" ? form.date || todayKey : undefined;
 
-        const nextStatus = status ?? task.status;
-        return {
-          ...task,
-          title: form.title.trim(),
-          category: form.category,
-          taskType: form.taskType,
-          color: category.color,
-          date: nextStatus === "scheduled" ? form.date || todayKey : undefined,
-          time: form.time,
-          notes: form.notes.trim(),
-          status: nextStatus,
-        };
-      })
-    );
-    closeDialog();
+    const updatePayload = {
+      id: editingTaskId,
+      title: form.title.trim(),
+      category: form.category,
+      taskType: form.taskType,
+      labelColor: category.color,
+      dueDate: date,
+      time: form.time,
+      description: form.notes.trim(),
+      notes: form.notes.trim(),
+      status: nextStatus,
+      syncCalendar: nextStatus === "scheduled",
+    };
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      const data = await res.json();
+
+      if (onTasksChange && sharedTasks) {
+        onTasksChange(sharedTasks.map((t) => (t.id === editingTaskId ? data.task : t)));
+      } else {
+        setLocalRawTasks((current) =>
+          current.map((t) => (t.id === editingTaskId ? data.task : t))
+        );
+      }
+      closeDialog();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const deleteTask = () => {
+  const deleteTask = async () => {
     if (!editingTaskId) return;
 
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== editingTaskId));
-    closeDialog();
+    try {
+      const res = await fetch(`/api/tasks?id=${encodeURIComponent(editingTaskId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete task");
+
+      if (onTasksChange && sharedTasks) {
+        onTasksChange(sharedTasks.filter((t) => t.id !== editingTaskId));
+      } else {
+        setLocalRawTasks((current) => current.filter((t) => t.id !== editingTaskId));
+      }
+      closeDialog();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const moveTaskToDate = (taskId: string, dateKey: string) => {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) => (task.id === taskId ? { ...task, date: dateKey, status: "scheduled" } : task))
+  const moveTaskToDate = async (taskId: string, dateKey: string) => {
+    const rawTasks = sharedTasks ?? localRawTasks;
+    const task = rawTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    // Optimistic update
+    const updatedRawTasks = rawTasks.map((t) =>
+      t.id === taskId ? { ...t, dueDate: dateKey, status: "scheduled" } : t
     );
+    if (onTasksChange && sharedTasks) {
+      onTasksChange(updatedRawTasks);
+    } else {
+      setLocalRawTasks(updatedRawTasks);
+    }
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskId,
+          dueDate: dateKey,
+          status: "scheduled",
+          syncCalendar: true,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update task date");
+      const data = await res.json();
+
+      const confirmedRawTasks = (sharedTasks ?? localRawTasks).map((t) =>
+        t.id === taskId ? data.task : t
+      );
+      if (onTasksChange && sharedTasks) {
+        onTasksChange(confirmedRawTasks);
+      } else {
+        setLocalRawTasks(confirmedRawTasks);
+      }
+    } catch (err) {
+      console.error(err);
+      const rollbackRawTasks = (sharedTasks ?? localRawTasks).map((t) =>
+        t.id === taskId ? task : t
+      );
+      if (onTasksChange && sharedTasks) {
+        onTasksChange(rollbackRawTasks);
+      } else {
+        setLocalRawTasks(rollbackRawTasks);
+      }
+    }
   };
 
   const navigateCalendar = (direction: -1 | 1) => {
@@ -295,6 +436,10 @@ export function CalendarPage() {
       </div>
     </div>
   );
+
+  if (loading) {
+    return <CalendarSkeleton />;
+  }
 
   return (
     <div className="grid min-h-[calc(100vh-4rem)] gap-4 overflow-hidden p-4 xl:grid-cols-[minmax(0,1fr)_292px]">
