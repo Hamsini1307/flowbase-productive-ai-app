@@ -98,3 +98,17 @@ export const notes = pgTable("notes", {
 
 export type NoteDb = typeof notes.$inferSelect;
 export type NewNoteDb = typeof notes.$inferInsert;
+
+export const whiteboards = pgTable("whiteboards", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").default("Untitled Whiteboard").notNull(),
+  elements: jsonb("elements").default([]).notNull(), // Excalidraw canvas shapes
+  appState: jsonb("app_state").default({}).notNull(),   // Canvas position and zoom
+  color: text("color").default("#ff6b4a").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type WhiteboardDb = typeof whiteboards.$inferSelect;
+export type NewWhiteboardDb = typeof whiteboards.$inferInsert;

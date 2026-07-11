@@ -1,8 +1,32 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, auth } from "@clerk/nextjs/server";
 import { eq, or } from "drizzle-orm";
 import { db, users } from "@/db";
+import { getCachedUser, setCachedUser } from "@/lib/user-cache";
 
 export async function syncCurrentUser() {
+  const { userId } = await auth();
+
+  if (!userId) return null;
+
+  // 1. Check local cache first (extremely fast)
+  const cached = await getCachedUser(userId);
+  if (cached) {
+    return cached;
+  }
+
+  // 2. Check local database (fast)
+  const [existingUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.clerkId, userId))
+    .limit(1);
+
+  if (existingUser) {
+    setCachedUser(userId, existingUser);
+    return existingUser;
+  }
+
+  // 3. Fallback to slow currentUser() only if the user is missing from DB
   const user = await currentUser();
 
   if (!user) return null;
@@ -24,19 +48,17 @@ export async function syncCurrentUser() {
     updatedAt: new Date(),
   };
 
-  const [existingUser] = await db
+  const [existingEmailUser] = await db
     .select({ id: users.id })
     .from(users)
-    .where(or(eq(users.clerkId, user.id), eq(users.email, email)))
+    .where(eq(users.email, email))
     .limit(1);
 
-  const { setCachedUser } = await import("@/lib/user-cache");
-
-  if (existingUser) {
+  if (existingEmailUser) {
     const [savedUser] = await db
       .update(users)
       .set(profile)
-      .where(eq(users.id, existingUser.id))
+      .where(eq(users.id, existingEmailUser.id))
       .returning();
 
     setCachedUser(user.id, savedUser);

@@ -24,6 +24,7 @@ import { CalendarPage } from "@/components/calendar-page";
 import { KanbanPage } from "@/components/kanban-page";
 import { KanbanSkeleton, CalendarSkeleton } from "@/components/loading-skeletons";
 import { NotesPage } from "@/components/notes-page";
+import { WhiteboardPage } from "@/components/whiteboard-page";
 import { cn } from "@/lib/utils";
 
 const menuGroups = [
@@ -269,6 +270,8 @@ export function DashboardShell() {
             />
           ) : activePage === "Notes" ? (
             <NotesPage />
+          ) : activePage === "Whiteboard" ? (
+            <WhiteboardPage />
           ) : (
             <div className="grid gap-5 p-5 lg:grid-cols-[1.25fr_0.75fr]">
               <section className="rounded-lg border border-[#d6e7df] bg-[#fbfff8] p-5 shadow-sm">

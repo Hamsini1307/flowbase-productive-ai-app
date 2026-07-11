@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -30,8 +31,11 @@ import {
   Pin,
   Check,
   ChevronDown,
+  Edit3,
+  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAssemblyAIStreaming } from "@/hooks/use-assemblyai-streaming";
 
 interface Note {
   id: string;
@@ -149,6 +153,34 @@ export function NotesPage() {
         }
       }
     },
+  });
+
+  const handleFinalTranscript = React.useCallback((text: string) => {
+    if (!editor || !text.trim()) return;
+
+    editor.chain()
+      .focus()
+      .insertContent(text + " ")
+      .run();
+
+    if (activeNote) {
+      const updatedHTML = editor.getHTML();
+      setNotesList((current) =>
+        current.map((n) => (n.id === activeNote.id ? { ...n, content: updatedHTML, updatedAt: new Date().toISOString() } : n))
+      );
+      triggerAutoSave(activeNote.id, { content: updatedHTML });
+    }
+  }, [editor, activeNote, triggerAutoSave]);
+
+  const {
+    isRecording,
+    isConnecting,
+    partialTranscript,
+    error: streamingError,
+    startRecording,
+    stopRecording,
+  } = useAssemblyAIStreaming({
+    onFinalTranscript: handleFinalTranscript,
   });
 
   // Sync editor content when selected note changes
@@ -354,6 +386,28 @@ export function NotesPage() {
     }
   };
 
+  const handleRenameNote = async (note: Note, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newTitle = prompt("Enter new title for the note:", note.title);
+    if (newTitle === null) return;
+    const finalTitle = newTitle.trim() || "Untitled Note";
+
+    setNotesList((current) =>
+      current.map((n) => (n.id === note.id ? { ...n, title: finalTitle } : n))
+    );
+
+    try {
+      await fetch("/api/notes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: note.id, title: finalTitle }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+    setActiveNoteMenu(null);
+  };
+
   // Toggle Favorite/Pin Action
   const handleTogglePin = async (note: Note, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -409,8 +463,9 @@ export function NotesPage() {
 
   // AI Refine Action
   const handleAiRefine = async (option: string, tone?: string) => {
-    if (!editor || isAiRefining) return;
+    if (!editor || isAiRefining || !activeNote) return;
 
+    const targetNoteId = activeNote.id;
     const { from, to } = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(from, to, " ");
     if (!selectedText.trim()) return;
@@ -427,7 +482,18 @@ export function NotesPage() {
 
       if (res.ok) {
         const data = await res.json();
-        editor.commands.insertContentAt({ from, to }, data.text);
+        
+        // Ensure user is still editing the same note and positions are valid
+        if (selectedNoteId === targetNoteId && !editor.isDestroyed) {
+          const docLength = editor.state.doc.content.size;
+          const safeFrom = Math.max(0, Math.min(from, docLength));
+          const safeTo = Math.max(0, Math.min(to, docLength));
+
+          editor.chain()
+            .focus()
+            .insertContentAt({ from: safeFrom, to: safeTo }, data.text)
+            .run();
+        }
       }
     } catch (err) {
       console.error("AI refine request failed:", err);
@@ -558,6 +624,13 @@ export function NotesPage() {
                         className="absolute right-2 top-8 z-30 w-44 rounded-md border border-[#d6e7df] bg-white p-1 shadow-lg"
                       >
                         <button
+                          onClick={(e) => handleRenameNote(note, e)}
+                          className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs font-semibold text-[#17201e] hover:bg-[#f1faf6]"
+                        >
+                          <Edit3 className="size-3.5" />
+                          Rename
+                        </button>
+                        <button
                           onClick={(e) => handleDuplicateNote(note, e)}
                           className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs font-semibold text-[#17201e] hover:bg-[#f1faf6]"
                         >
@@ -669,6 +742,33 @@ export function NotesPage() {
                   </div>
                 </div>
 
+                {!activeNote.isTrash && (
+                  <button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={isConnecting}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition shadow-sm",
+                      isRecording
+                        ? "bg-[#fff1ee] border-[#ffd0c6] text-[#c4442b]"
+                        : "bg-white border-[#d6e7df] text-[#55645f] hover:bg-gray-100"
+                    )}
+                  >
+                    {isConnecting ? (
+                      <Loader2 className="size-3.5 animate-spin text-[#66756f]" />
+                    ) : (
+                      <div className="relative flex items-center justify-center">
+                        <Mic className={cn("size-3.5", isRecording && "text-[#c4442b]")} />
+                        {isRecording && (
+                          <span className="absolute inline-flex h-3.5 w-3.5 rounded-full bg-[#ff6b4a]/30 animate-ping" />
+                        )}
+                      </div>
+                    )}
+                    <span>
+                      {isConnecting ? "Connecting..." : isRecording ? "Stop Recording" : "Speak to Note"}
+                    </span>
+                  </button>
+                )}
+
                 {activeNote.isTrash ? (
                   <div className="flex gap-2">
                     <button
@@ -702,6 +802,23 @@ export function NotesPage() {
                 )}
               </div>
             </div>
+
+            {/* Streaming error message */}
+            {streamingError && (
+              <div className="flex items-center justify-between border-b border-[#ffd0c6] px-6 py-2 bg-[#fff1ee] text-xs font-semibold text-[#c4442b]">
+                <span>Error: {streamingError}. Please ensure ASSEMBLYAI_API_KEY is configured in your .env.</span>
+                <button onClick={() => stopRecording()} className="underline hover:text-[#a03620]">Dismiss</button>
+              </div>
+            )}
+
+            {/* Live Transcription Preview banner */}
+            {(isRecording || partialTranscript) && (
+              <div className="flex items-center gap-2 border-b border-[#d6e7df] px-6 py-2 bg-[#fbfff8] text-xs text-[#55645f] animate-pulse">
+                <span className="size-2 rounded-full bg-[#c4442b]" />
+                <span className="font-semibold shrink-0">Live Transcribing:</span>
+                <span className="italic text-[#17201e] truncate">{partialTranscript || "Listening..."}</span>
+              </div>
+            )}
 
             {/* Static Editor Toolbar */}
             {editor && !activeNote.isTrash && (
@@ -771,7 +888,7 @@ export function NotesPage() {
 
             {/* Bubble Formatting Menu */}
             {editor && (
-              <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+              <BubbleMenu editor={editor}>
                 <div className="flex items-center gap-1 rounded-md border border-[#d6e7df] bg-white p-1 shadow-lg">
                   <button
                     onClick={() => editor.chain().focus().toggleBold().run()}
