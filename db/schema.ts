@@ -171,6 +171,7 @@ export const userSettings = pgTable("user_settings", {
   name: text("name"),
   email: text("email"),
   imageUrl: text("image_url"),
+  assemblyaiAgentId: text("assemblyai_agent_id"),
   
   // Subscription Section
   subscriptionPlan: text("subscription_plan").default("Free").notNull(),
