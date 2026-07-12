@@ -38,7 +38,8 @@ export function DashboardPage({
   const [error, setError] = React.useState<string | null>(null);
 
   // Format active user name
-  const userName = "Hamsini";
+   const { user: currentUser } = useUser();
+ const userName = currentUser?.firstName || "there";
 
   // Helper to format today's key (YYYY-MM-DD)
   const todayKey = React.useMemo(() => {

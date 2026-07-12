@@ -79,7 +79,8 @@ const kanban = [
 ];
 
 export function DashboardShell() {
-  const userName = "Hamsini";
+ const { user } = useUser();
+  const userName = user?.firstName || "there";
   const [collapsed, setCollapsed] = React.useState(false);
   const [activePage, setActivePage] = React.useState("Dashboard");
 
