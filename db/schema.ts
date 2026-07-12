@@ -164,3 +164,73 @@ export const aiApps = pgTable("ai_apps", {
 
 export type AiAppDb = typeof aiApps.$inferSelect;
 export type NewAiAppDb = typeof aiApps.$inferInsert;
+
+export const userSettings = pgTable("user_settings", {
+  id: text("id").primaryKey(), // userId (Clerk ID)
+  userId: text("user_id").notNull().unique(),
+  name: text("name"),
+  email: text("email"),
+  imageUrl: text("image_url"),
+  
+  // Subscription Section
+  subscriptionPlan: text("subscription_plan").default("Free").notNull(),
+  subscriptionStatus: text("subscription_status").default("Active").notNull(),
+  subscriptionRenewal: text("subscription_renewal").default("").notNull(),
+  
+  // Dynamic Category Settings (jsonb array groups)
+  categories: jsonb("categories").default({
+    calendar: [
+      { name: "Work", color: "#6257f6", icon: "Briefcase" },
+      { name: "Personal", color: "#ff6b4a", icon: "User" },
+      { name: "Meeting", color: "#00a88f", icon: "Calendar" },
+      { name: "Focus", color: "#ffd166", icon: "Timer" },
+      { name: "Reminder", color: "#ff8ab3", icon: "Bell" }
+    ],
+    kanban: [
+      { name: "Design", color: "#ffd166", icon: "Palette" },
+      { name: "Development", color: "#55c7f5", icon: "Code" },
+      { name: "Review", color: "#ff8ab3", icon: "Search" },
+      { name: "Done", color: "#80d77b", icon: "Check" }
+    ],
+    notes: [
+      { name: "Ideas", color: "#ffd166", icon: "Lightbulb" },
+      { name: "Drafts", color: "#55c7f5", icon: "FileText" },
+      { name: "Trash", color: "#ff8ab3", icon: "Trash2" }
+    ],
+    reminders: [
+      { name: "High Priority", color: "#ff6b4a", icon: "AlertCircle" },
+      { name: "Daily Routines", color: "#00a88f", icon: "Clock" }
+    ]
+  }).notNull(),
+
+  // AI Model Settings
+  preferredAiModel: text("preferred_ai_model").default("gemini-2.5-flash").notNull(),
+  aiBehavior: text("ai_behavior").default("Helpful planning assistant specializing in clean workspace layouts.").notNull(),
+  aiTone: text("ai_tone").default("Cozy").notNull(),
+  enabledAiFeatures: jsonb("enabled_ai_features").default({
+    aiRefine: true,
+    aiAssistant: true,
+    aiBuilder: true
+  }).notNull(),
+
+  // Other Important Settings
+  theme: text("theme").default("light").notNull(),
+  notifications: jsonb("notifications").default({
+    email: true,
+    push: false,
+    updates: true
+  }).notNull(),
+  defaultCalendarView: text("default_calendar_view").default("Month").notNull(),
+  defaultTaskPriority: text("default_task_priority").default("Medium").notNull(),
+  autoSave: boolean("auto_save").default(true).notNull(),
+  privacySettings: jsonb("privacy_settings").default({
+    shareData: false,
+    analyticsOptIn: true
+  }).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserSettingsDb = typeof userSettings.$inferSelect;
+export type NewUserSettingsDb = typeof userSettings.$inferInsert;

@@ -28,6 +28,7 @@ import { WhiteboardPage } from "@/components/whiteboard-page";
 import { SpacesPage } from "@/components/spaces-page";
 import { AiTemplateBuilderPage } from "@/components/ai-template-builder-page";
 import { RenderDynamicApp } from "@/components/render-dynamic-app";
+import SettingsPage from "@/components/settings-page";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -338,6 +339,8 @@ export function DashboardShell() {
             <SpacesPage />
           ) : activePage === "AI Template Builder" ? (
             <AiTemplateBuilderPage onSidebarChange={refreshSidebarApps} />
+          ) : activePage === "Settings" ? (
+            <SettingsPage />
           ) : activePage.startsWith("app-") ? (
             <RenderDynamicApp
               appId={activePage.replace("app-", "")}
