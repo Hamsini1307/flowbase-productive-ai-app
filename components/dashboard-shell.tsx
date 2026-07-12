@@ -25,6 +25,10 @@ import { KanbanPage } from "@/components/kanban-page";
 import { KanbanSkeleton, CalendarSkeleton } from "@/components/loading-skeletons";
 import { NotesPage } from "@/components/notes-page";
 import { WhiteboardPage } from "@/components/whiteboard-page";
+import { SpacesPage } from "@/components/spaces-page";
+import { AiTemplateBuilderPage } from "@/components/ai-template-builder-page";
+import { RenderDynamicApp } from "@/components/render-dynamic-app";
+import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuGroups = [
@@ -80,6 +84,25 @@ export function DashboardShell() {
   
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [tasksLoading, setTasksLoading] = React.useState(true);
+
+  const [sidebarApps, setSidebarApps] = React.useState<any[]>([]);
+
+  const refreshSidebarApps = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai-apps");
+      if (res.ok) {
+        const data = await res.json();
+        const userApps = data.apps || [];
+        setSidebarApps(userApps.filter((app: any) => app.inSidebar));
+      }
+    } catch (err) {
+      console.error("Failed to fetch sidebar apps:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshSidebarApps();
+  }, [refreshSidebarApps]);
 
   // Track activeBoardId in a ref to avoid re-triggering the prefetch callback when the first board loads
   const activeBoardIdRef = React.useRef(activeBoardId);
@@ -177,7 +200,7 @@ export function DashboardShell() {
             {compact ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
           </button>
 
-          <nav className="mt-4 flex-1 space-y-3 overflow-y-auto pr-0.5" aria-label="Main navigation">
+          <nav className="mt-4 flex-1 space-y-3 overflow-y-auto pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Main navigation">
             {menuGroups.map((group) => (
               <div key={group.label} className="space-y-1">
                 <p
@@ -210,6 +233,45 @@ export function DashboardShell() {
                 })}
               </div>
             ))}
+
+            {/* Dynamic AI Generated Apps inside Sidebar */}
+            {sidebarApps.length > 0 && (
+              <div className="space-y-1 pt-3 border-t border-[#d6e7df]/60 animate-fadeIn">
+                <p
+                  className={cn(
+                    "px-1.5 text-[9px] font-semibold uppercase leading-4 tracking-[0.12em] text-[#7a8a84]",
+                    compact && "sr-only"
+                  )}
+                >
+                  Apps
+                </p>
+                {sidebarApps.map((app) => {
+                  const isActive = activePage === `app-${app.id}`;
+                  const IconComponent = (LucideIcons as any)[app.icon] || LucideIcons.HelpCircle;
+
+                  return (
+                    <button
+                      key={app.id}
+                      type="button"
+                      title={compact ? app.name : undefined}
+                      onClick={() => setActivePage(`app-${app.id}`)}
+                      className={cn(
+                        "group flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-[11px] font-medium text-[#55645f] transition hover:bg-[#e8f6ef] hover:text-[#17201e]",
+                        isActive && "bg-[#17201e] text-[#f7fff9] shadow-sm hover:bg-[#17201e] hover:text-[#f7fff9]",
+                        compact && "justify-center px-0"
+                      )}
+                    >
+                      <IconComponent
+                        className="size-3.5 shrink-0"
+                        style={{ color: isActive ? "#f7fff9" : app.color }}
+                        aria-hidden="true"
+                      />
+                      <span className={cn("truncate", compact && "sr-only")}>{app.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </nav>
 
           <div className="border-t border-[#d6e7df] pt-3">
@@ -272,6 +334,15 @@ export function DashboardShell() {
             <NotesPage />
           ) : activePage === "Whiteboard" ? (
             <WhiteboardPage />
+          ) : activePage === "Pages / Spaces" ? (
+            <SpacesPage />
+          ) : activePage === "AI Template Builder" ? (
+            <AiTemplateBuilderPage onSidebarChange={refreshSidebarApps} />
+          ) : activePage.startsWith("app-") ? (
+            <RenderDynamicApp
+              appId={activePage.replace("app-", "")}
+              onSidebarChange={refreshSidebarApps}
+            />
           ) : (
             <div className="grid gap-5 p-5 lg:grid-cols-[1.25fr_0.75fr]">
               <section className="rounded-lg border border-[#d6e7df] bg-[#fbfff8] p-5 shadow-sm">

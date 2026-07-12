@@ -112,3 +112,55 @@ export const whiteboards = pgTable("whiteboards", {
 
 export type WhiteboardDb = typeof whiteboards.$inferSelect;
 export type NewWhiteboardDb = typeof whiteboards.$inferInsert;
+
+export const spaces = pgTable("spaces", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").default("").notNull(),
+  color: text("color").default("#7c5dfa").notNull(),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SpaceDb = typeof spaces.$inferSelect;
+export type NewSpaceDb = typeof spaces.$inferInsert;
+
+export const spacePages = pgTable("space_pages", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  spaceId: text("space_id").references(() => spaces.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  content: text("content").default("").notNull(),
+  template: text("template").default("Blank Page").notNull(),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  updatedBy: text("updated_by").default("JD").notNull(),
+  commentsCount: integer("comments_count").default(0).notNull(),
+  linkedTasksCount: integer("linked_tasks_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SpacePageDb = typeof spacePages.$inferSelect;
+export type NewSpacePageDb = typeof spacePages.$inferInsert;
+
+export const aiApps = pgTable("ai_apps", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").default("").notNull(),
+  icon: text("icon").default("Flame").notNull(),
+  color: text("color").default("#f97316").notNull(),
+  layout: text("layout").default("single-page").notNull(),
+  data: jsonb("data").default({}).notNull(),
+  inSidebar: boolean("in_sidebar").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AiAppDb = typeof aiApps.$inferSelect;
+export type NewAiAppDb = typeof aiApps.$inferInsert;

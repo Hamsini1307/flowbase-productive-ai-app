@@ -102,10 +102,10 @@ export async function POST(request: Request) {
     // Grant write permission to this specific room
     session.allow(room, ["room:write"]);
 
-    // Race authorization with a 4-second timeout to avoid indefinite hanging
+    // Race authorization with an 8-second timeout to avoid indefinite hanging
     const authPromise = session.authorize();
     const timeoutPromise = new Promise<{ status: number; body: string }>((_, reject) =>
-      setTimeout(() => reject(new Error("Liveblocks auth timed out on server")), 1500)
+      setTimeout(() => reject(new Error("Liveblocks auth timed out on server")), 8000)
     );
 
     const { status, body } = await Promise.race([authPromise, timeoutPromise]);
