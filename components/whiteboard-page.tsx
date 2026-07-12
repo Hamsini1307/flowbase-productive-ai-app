@@ -17,6 +17,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import "@excalidraw/excalidraw/index.css";
 
 // Dynamic import of Excalidraw to prevent SSR failures
@@ -47,11 +48,23 @@ const boardColors = [
   "#80d77b", // Green
 ];
 
-export function WhiteboardPage() {
-  const [boards, setBoards] = React.useState<Whiteboard[]>([]);
-  const [selectedBoardId, setSelectedBoardId] = React.useState<string | null>(null);
+interface WhiteboardPageProps {
+  sharedWhiteboards?: any[];
+  sharedWhiteboardsLoading?: boolean;
+}
+
+export function WhiteboardPage({
+  sharedWhiteboards,
+  sharedWhiteboardsLoading
+}: WhiteboardPageProps = {}) {
+  const [boards, setBoards] = React.useState<Whiteboard[]>(sharedWhiteboards || []);
+  const [selectedBoardId, setSelectedBoardId] = React.useState<string | null>(
+    sharedWhiteboards && sharedWhiteboards.length > 0 ? sharedWhiteboards[0].id : null
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(
+    sharedWhiteboardsLoading !== undefined ? sharedWhiteboardsLoading : (sharedWhiteboards ? false : true)
+  );
   const [savingStatus, setSavingStatus] = React.useState<"Saved" | "Saving..." | "Error saving" | "Changes pending">("Saved");
   
   // Sidebar actions state
@@ -73,9 +86,18 @@ export function WhiteboardPage() {
 
   // Load created whiteboards
   React.useEffect(() => {
+    if (sharedWhiteboards) {
+      setBoards(sharedWhiteboards);
+      if (sharedWhiteboards.length > 0 && !selectedBoardId) {
+        setSelectedBoardId(sharedWhiteboards[0].id);
+      }
+      setLoading(false);
+      return;
+    }
+
     async function fetchBoards() {
       try {
-        const res = await fetch("/api/whiteboards");
+        const res = await fetchWithTimeout("/api/whiteboards");
         if (res.ok) {
           const data = await res.json();
           setBoards(data.whiteboards || []);
@@ -90,7 +112,7 @@ export function WhiteboardPage() {
       }
     }
     void fetchBoards();
-  }, []);
+  }, [sharedWhiteboards]);
 
   const activeBoard = React.useMemo(() => {
     return boards.find((b) => b.id === selectedBoardId) || null;

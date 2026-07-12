@@ -1,6 +1,7 @@
 import * as React from "react";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 // Standard category type definition
 interface CategoryItem {
@@ -90,7 +91,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch("/api/user-settings");
+        const res = await fetchWithTimeout("/api/user-settings");
         if (res.ok) {
           const data = await res.json();
           setSettings(data.settings);

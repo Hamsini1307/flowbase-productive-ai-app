@@ -33,6 +33,7 @@ import { AiAssistantPage } from "@/components/ai-assistant-page";
 import { DashboardPage } from "@/components/dashboard-page";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useUser } from "@clerk/nextjs";
 
 const menuGroups = [
@@ -90,12 +91,25 @@ export function DashboardShell() {
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [tasksLoading, setTasksLoading] = React.useState(true);
 
+  const [notes, setNotes] = React.useState<any[]>([]);
+  const [notesLoading, setNotesLoading] = React.useState(true);
+
+  const [whiteboards, setWhiteboards] = React.useState<any[]>([]);
+  const [whiteboardsLoading, setWhiteboardsLoading] = React.useState(true);
+
+  const [spaces, setSpaces] = React.useState<any[]>([]);
+  const [pages, setPages] = React.useState<any[]>([]);
+  const [spacesLoading, setSpacesLoading] = React.useState(true);
+
+  const [aiApps, setAiApps] = React.useState<any[]>([]);
+  const [aiAppsLoading, setAiAppsLoading] = React.useState(true);
+
   const [sidebarApps, setSidebarApps] = React.useState<any[]>([]);
   const [assistantMessages, setAssistantMessages] = React.useState<any[]>([]);
 
   const refreshSidebarApps = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/ai-apps");
+      const res = await fetchWithTimeout("/api/ai-apps");
       if (res.ok) {
         const data = await res.json();
         const userApps = data.apps || [];
@@ -119,15 +133,41 @@ export function DashboardShell() {
 
   const refreshData = React.useCallback(async () => {
     try {
-      // Parallel loading of boards and tasks
-      const [boardsRes, tasksRes] = await Promise.all([
-        fetch("/api/kanban-boards"),
-        fetch("/api/tasks"),
+      // Parallel loading of all workspace modules to warm up Neon connection instantly
+      const [
+        boardsRes,
+        tasksRes,
+        notesRes,
+        whiteboardsRes,
+        spacesRes,
+        pagesRes,
+        appsRes
+      ] = await Promise.all([
+        fetchWithTimeout("/api/kanban-boards"),
+        fetchWithTimeout("/api/tasks"),
+        fetchWithTimeout("/api/notes"),
+        fetchWithTimeout("/api/whiteboards"),
+        fetchWithTimeout("/api/spaces"),
+        fetchWithTimeout("/api/spaces/pages"),
+        fetchWithTimeout("/api/ai-apps")
       ]);
 
-      const [boardsData, tasksData] = await Promise.all([
+      const [
+        boardsData,
+        tasksData,
+        notesData,
+        whiteboardsData,
+        spacesData,
+        pagesData,
+        appsData
+      ] = await Promise.all([
         boardsRes.json(),
         tasksRes.json(),
+        notesRes.json(),
+        whiteboardsRes.json(),
+        spacesRes.json(),
+        pagesRes.json(),
+        appsRes.json()
       ]);
 
       if (boardsData.boards) {
@@ -136,21 +176,39 @@ export function DashboardShell() {
           setActiveBoardId(boardsData.boards[0].id);
         }
       }
-      
       if (tasksData.tasks) {
         setTasks(tasksData.tasks);
       }
+      if (notesData.notes) {
+        setNotes(notesData.notes);
+      }
+      if (whiteboardsData.whiteboards) {
+        setWhiteboards(whiteboardsData.whiteboards);
+      }
+      if (spacesData.spaces) {
+        setSpaces(spacesData.spaces);
+      }
+      if (pagesData.pages) {
+        setPages(pagesData.pages);
+      }
+      if (appsData.apps) {
+        setAiApps(appsData.apps);
+      }
     } catch (err) {
-      console.error("Failed to prefetch boards and tasks:", err);
+      console.error("Failed to prefetch workspace data:", err);
     } finally {
       setBoardsLoading(false);
       setTasksLoading(false);
+      setNotesLoading(false);
+      setWhiteboardsLoading(false);
+      setSpacesLoading(false);
+      setAiAppsLoading(false);
     }
   }, []);
 
   const refreshTasks = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks");
+      const res = await fetchWithTimeout("/api/tasks");
       const data = await res.json();
       if (data.tasks) {
         setTasks(data.tasks);
@@ -161,10 +219,9 @@ export function DashboardShell() {
   }, []);
 
   React.useEffect(() => {
-    if (activePage === "Calendar" || activePage === "Task / Kanban" || activePage === "Dashboard") {
-      void refreshData();
-    }
-  }, [activePage, refreshData]);
+    // Preload calendar and kanban data when the signed-in workspace opens.
+    void refreshData();
+  }, [refreshData]);
 
   React.useEffect(() => {
     const query = window.matchMedia("(max-width: 760px)");
@@ -350,13 +407,27 @@ export function DashboardShell() {
               tasks={tasks}
             />
           ) : activePage === "Notes" ? (
-            <NotesPage />
+            <NotesPage
+              sharedNotes={notes}
+              sharedNotesLoading={notesLoading}
+            />
           ) : activePage === "Whiteboard" ? (
-            <WhiteboardPage />
+            <WhiteboardPage
+              sharedWhiteboards={whiteboards}
+              sharedWhiteboardsLoading={whiteboardsLoading}
+            />
           ) : activePage === "Pages / Spaces" ? (
-            <SpacesPage />
+            <SpacesPage
+              sharedSpaces={spaces}
+              sharedPages={pages}
+              sharedSpacesLoading={spacesLoading}
+            />
           ) : activePage === "AI Template Builder" ? (
-            <AiTemplateBuilderPage onSidebarChange={refreshSidebarApps} />
+            <AiTemplateBuilderPage
+              onSidebarChange={refreshSidebarApps}
+              sharedAiApps={aiApps}
+              sharedAiAppsLoading={aiAppsLoading}
+            />
           ) : activePage === "Settings" ? (
             <SettingsPage />
           ) : activePage.startsWith("app-") ? (

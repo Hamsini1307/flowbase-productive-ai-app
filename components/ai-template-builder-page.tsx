@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 interface AppField {
   label: string;
@@ -78,11 +79,19 @@ const getCoverImage = (name: string) => {
 
 interface AiTemplateBuilderPageProps {
   onSidebarChange?: () => void;
+  sharedAiApps?: any[];
+  sharedAiAppsLoading?: boolean;
 }
 
-export function AiTemplateBuilderPage({ onSidebarChange }: AiTemplateBuilderPageProps) {
-  const [apps, setApps] = React.useState<AiApp[]>([]);
-  const [loading, setLoading] = React.useState(true);
+export function AiTemplateBuilderPage({
+  onSidebarChange,
+  sharedAiApps,
+  sharedAiAppsLoading
+}: AiTemplateBuilderPageProps = {}) {
+  const [apps, setApps] = React.useState<AiApp[]>(sharedAiApps || []);
+  const [loading, setLoading] = React.useState(
+    sharedAiAppsLoading !== undefined ? sharedAiAppsLoading : (sharedAiApps ? false : true)
+  );
   const [promptInput, setPromptInput] = React.useState("");
   const [generating, setGenerating] = React.useState(false);
   const [genStep, setGenStep] = React.useState("");
@@ -424,7 +433,7 @@ export function AiTemplateBuilderPage({ onSidebarChange }: AiTemplateBuilderPage
 
   const fetchApps = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/ai-apps");
+      const res = await fetchWithTimeout("/api/ai-apps");
       if (res.ok) {
         const data = await res.json();
         setApps(data.apps || []);
@@ -437,8 +446,13 @@ export function AiTemplateBuilderPage({ onSidebarChange }: AiTemplateBuilderPage
   }, []);
 
   React.useEffect(() => {
+    if (sharedAiApps) {
+      setApps(sharedAiApps);
+      setLoading(false);
+      return;
+    }
     void fetchApps();
-  }, [fetchApps]);
+  }, [fetchApps, sharedAiApps]);
 
   const handleGenerate = async () => {
     if (!promptInput.trim()) return;

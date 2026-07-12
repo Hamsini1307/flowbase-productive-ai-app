@@ -6,7 +6,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function LandingPage() {
+  const [activeShowcaseTab, setActiveShowcaseTab] = React.useState("dashboard");
   const [faqOpenIdx, setFaqOpenIdx] = React.useState<number | null>(null);
+  const [showDemoModal, setShowDemoModal] = React.useState(false);
+  const [demoActiveTab, setDemoActiveTab] = React.useState("dashboard");
 
   // Features list
   const features = [
@@ -204,15 +207,15 @@ export function LandingPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <a
-            href="#showcase"
-            className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-955 transition select-none mr-1"
+          <button
+            onClick={() => setShowDemoModal(true)}
+            className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-955 transition select-none mr-1 cursor-pointer"
           >
             <Icons.Play className="size-3 text-[#ff6b4a] fill-[#ff6b4a] translate-y-[0.5px]" />
             <span>Watch Demo</span>
-          </a>
+          </button>
           <Link
-            href="/sign-up"
+            href="/sign-in"
             className="flex items-center gap-1 h-8.5 px-4 rounded-lg bg-[#ff6b4a] hover:bg-[#ef5d3d] text-white text-xs font-bold transition shadow-sm select-none"
           >
             <span>Get Started</span>
@@ -258,19 +261,19 @@ export function LandingPage() {
         {/* Call to Actions */}
         <div className="flex items-center justify-center gap-3">
           <Link
-            href="/sign-up"
+            href="/sign-in"
             className="flex items-center gap-1.5 h-10 px-6 rounded-lg bg-[#ff6b4a] hover:bg-[#ef5d3d] text-white text-xs font-black transition shadow-md"
           >
             <span>Get Started</span>
             <Icons.ArrowRight className="size-3.5" />
           </Link>
-          <a
-            href="#showcase"
-            className="flex items-center gap-1.5 h-10 px-6 rounded-lg border border-[#e1ded7] bg-white text-xs font-bold text-gray-700 hover:bg-[#faf8f5] transition shadow-sm"
+          <button
+            onClick={() => setShowDemoModal(true)}
+            className="flex items-center gap-1.5 h-10 px-6 rounded-lg border border-[#e1ded7] bg-white text-xs font-bold text-gray-700 hover:bg-[#faf8f5] transition shadow-sm cursor-pointer"
           >
-            <Icons.Play className="size-4 text-gray-400 fill-gray-400" />
+            <Icons.Play className="size-4 text-[#ff6b4a] fill-[#ff6b4a]" />
             <span>Watch Demo</span>
-          </a>
+          </button>
         </div>
 
         {/* FLOWBASE COMMAND CENTER Mockup */}
@@ -863,7 +866,7 @@ export function LandingPage() {
               </div>
 
               <Link
-                href="/sign-up"
+                href="/sign-in"
                 className={cn(
                   "flex items-center justify-center h-9 w-full rounded-lg text-xs font-black mt-6 transition shadow-sm",
                   plan.highlighted 
@@ -948,7 +951,7 @@ export function LandingPage() {
         </div>
 
         <Link
-          href="/sign-up"
+          href="/sign-in"
           className="inline-flex items-center gap-1.5 h-10 px-6 rounded-lg bg-[#ff6b4a] hover:bg-[#ef5d3d] text-white text-xs font-black transition shadow-md"
         >
           <span>Start for Free</span>
@@ -1009,6 +1012,181 @@ export function LandingPage() {
         </div>
       </footer>
 
+      {/* Interactive Demo Modal */}
+      {showDemoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm select-none">
+          <div className="bg-[#faf8f5] border border-[#e6e2db] rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col h-[480px]">
+            {/* Modal Header */}
+            <div className="border-b border-[#e6e2db] px-5 py-4 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <Icons.Play className="size-4 text-[#ff6b4a] fill-[#ff6b4a]" />
+                <span className="text-xs font-black uppercase tracking-wider text-gray-800">Flowbase Product Tour</span>
+              </div>
+              <button
+                onClick={() => setShowDemoModal(false)}
+                className="size-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition cursor-pointer"
+              >
+                <Icons.X className="size-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left sidebar: Tabs for each feature */}
+              <div className="w-1/3 bg-white border-r border-[#e6e2db] p-3 space-y-1.5 overflow-y-auto">
+                <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block px-2 pb-1">Features</span>
+                {[
+                  { id: "dashboard", label: "Dashboard", desc: "Live summaries & tasks" },
+                  { id: "kanban", label: "Kanban Board", desc: "Visual pipeline columns" },
+                  { id: "calendar", label: "Calendar", desc: "Schedule agendas" },
+                  { id: "notes", label: "Notion Notes", desc: "Rich document editor" },
+                  { id: "whiteboard", label: "Whiteboard", desc: "Multiplayer sketches" },
+                  { id: "assistant", label: "Voice Assistant", desc: "Microphone planners" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setDemoActiveTab(item.id)}
+                    className={cn(
+                      "w-full text-left p-2 rounded-lg transition-all text-xs font-bold block cursor-pointer",
+                      demoActiveTab === item.id
+                        ? "bg-[#fff0ed] text-[#ff6b4a] border-l-2 border-[#ff6b4a]"
+                        : "text-gray-500 hover:bg-gray-55 hover:text-gray-805"
+                    )}
+                  >
+                    <span>{item.label}</span>
+                    <p className="text-[8px] text-gray-400 font-semibold mt-0.5">{item.desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Right view: Visual interactive layout */}
+              <div className="flex-1 bg-[#faf8f5] p-5 overflow-y-auto flex flex-col justify-between">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-700">
+                    {demoActiveTab === "dashboard" && "Consolidated Workspace Hub"}
+                    {demoActiveTab === "kanban" && "Multi-Column Project Tracker"}
+                    {demoActiveTab === "calendar" && "Integrated Dynamic Timelines"}
+                    {demoActiveTab === "notes" && "AI-Enhanced Document Writer"}
+                    {demoActiveTab === "whiteboard" && "Multiplayer Infinite Sandbox"}
+                    {demoActiveTab === "assistant" && "AssemblyAI Voice Planner"}
+                  </h4>
+                  <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                    {demoActiveTab === "dashboard" && "Warm welcome messages greet Hamsini. Shows tasks completions, notes feed, whiteboards counters, and real-time AI Insights summaries."}
+                    {demoActiveTab === "kanban" && "Move items smoothly between columns (To Do, In Progress, Review, Done). Click elements to view priorities, deadlines, and comments."}
+                    {demoActiveTab === "calendar" && "Syncs seamlessly with kanban task lists. Instantly drag-and-drop agendas or edit deadlines inside the calendar list."}
+                    {demoActiveTab === "notes" && "Notion-style block editing with inline AI text refine, custom icon emojis, cozy color highlights, and trash bins."}
+                    {demoActiveTab === "whiteboard" && "Excalidraw sketch canvas allowing multiplayer cursor coordinate syncing. Draw mockups, charts, flow diagrams, or drop shapes."}
+                    {demoActiveTab === "assistant" && "Streams voice capture to AssemblyAI using WebSocket connections. Recognizes speech, executes operations, and returns confirmed status."}
+                  </p>
+                </div>
+
+                {/* Simulated visual widget */}
+                <div className="bg-white border border-[#e6e2db] rounded-xl p-4 shadow-sm min-h-[160px] flex flex-col justify-between mt-4">
+                  {demoActiveTab === "dashboard" && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                        <span className="text-[10px] font-black text-gray-800">Welcome, Hamsini.</span>
+                        <span className="text-[8px] font-bold text-gray-400">Today's Agenda</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] font-bold text-[#00a88f] bg-[#e8f6ef] p-1.5 rounded-lg border border-[#00a88f]/10">
+                        <span>📅 Sync roadmap meeting</span>
+                        <span>10:30 AM</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] font-bold text-[#ff6b4a] bg-[#fff0ed] p-1.5 rounded-lg border border-[#ff6b4a]/10">
+                        <span>🚩 Core deployment check</span>
+                        <span>4:00 PM</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {demoActiveTab === "kanban" && (
+                    <div className="grid grid-cols-2 gap-2 h-full">
+                      <div className="bg-gray-50 border border-gray-150 p-2 rounded-lg flex flex-col justify-between h-[120px]">
+                        <span className="text-[8px] font-black uppercase text-gray-400">In Progress</span>
+                        <div className="bg-white p-2 rounded border border-gray-100 shadow-sm text-[8px] font-bold">
+                          Configure middleware API
+                          <span className="block text-[7px] text-[#ff6b4a] mt-1">High Priority</span>
+                        </div>
+                      </div>
+                      <div className="bg-gray-55 border border-gray-155 p-2 rounded-lg flex flex-col justify-between h-[120px]">
+                        <span className="text-[8px] font-black uppercase text-gray-400">Review</span>
+                        <div className="bg-white p-2 rounded border border-gray-100 shadow-sm text-[8px] font-bold">
+                          Setup seed query script
+                          <span className="block text-[7px] text-gray-400 mt-1">Medium Priority</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {demoActiveTab === "calendar" && (
+                    <div className="space-y-2 h-full">
+                      <div className="grid grid-cols-7 gap-1 text-center text-[7px] font-black text-gray-400 uppercase">
+                        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center text-[8px] font-bold">
+                        <span className="text-gray-300">28</span><span className="text-gray-300">29</span><span className="text-gray-300">30</span>
+                        <span className="bg-[#ff6b4a] text-white rounded-full size-4.5 flex items-center justify-center mx-auto shadow-sm">1</span>
+                        <span>2</span><span>3</span><span>4</span>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-150 p-2 rounded-lg text-[8px] font-bold text-gray-505 mt-1">
+                        🎯 Deadline: Phase 2 Launch
+                      </div>
+                    </div>
+                  )}
+
+                  {demoActiveTab === "notes" && (
+                    <div className="space-y-2 text-left">
+                      <span className="text-xs font-black text-gray-800">💡 App Architecture Idea</span>
+                      <div className="h-0.5 bg-gray-100 w-full" />
+                      <p className="text-[8px] leading-relaxed text-gray-400 font-semibold">
+                        Use Next.js API routes with Neon serverless endpoints to enable stateless scaling. Integrate Drizzle ORM to generate schemas automatically.
+                      </p>
+                    </div>
+                  )}
+
+                  {demoActiveTab === "whiteboard" && (
+                    <div className="flex items-center justify-center gap-3 h-full">
+                      <div className="size-16 rounded-full border-2 border-dashed border-[#ff6b4a] flex items-center justify-center text-[9px] font-black text-[#ff6b4a] text-center select-none bg-[#fff0ed]">
+                        Core API
+                      </div>
+                      <Icons.ArrowRight className="size-4 text-gray-400" />
+                      <div className="size-16 rounded-lg border-2 border-dashed border-[#7c5dfa] flex items-center justify-center text-[9px] font-black text-[#7c5dfa] text-center select-none bg-[#f5f2ff]">
+                        Database
+                      </div>
+                    </div>
+                  )}
+
+                  {demoActiveTab === "assistant" && (
+                    <div className="flex flex-col items-center justify-center text-center space-y-2 h-full">
+                      <div className="size-10 rounded-full bg-[#ff6b4a]/10 border border-[#ff6b4a]/20 flex items-center justify-center text-[#ff6b4a] animate-pulse">
+                        <Icons.Mic className="size-5" />
+                      </div>
+                      <span className="text-[7px] font-black uppercase text-[#ff6b4a] tracking-wider">WebSocket stream active</span>
+                      <p className="text-[9px] font-bold text-gray-600">"Create a task 'Configure auth providers'."</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-[#e6e2db] px-5 py-3 flex justify-end gap-2 bg-white shrink-0">
+              <button
+                onClick={() => setShowDemoModal(false)}
+                className="h-8.5 px-4 rounded-lg border border-[#e1ded7] bg-white text-xs font-bold text-gray-600 hover:bg-gray-55 transition cursor-pointer"
+              >
+                Close
+              </button>
+              <Link
+                href="/sign-up"
+                className="h-8.5 px-4 rounded-lg bg-[#ff6b4a] hover:bg-[#ef5d3d] text-white text-xs font-black flex items-center justify-center shadow-sm select-none"
+              >
+                Try Flowbase Free
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

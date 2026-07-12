@@ -40,6 +40,7 @@ import {
   Mic
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 interface Space {
   id: string;
@@ -85,10 +86,22 @@ const avatars = [
   { text: "TL", bg: "bg-blue-500" }
 ];
 
-export function SpacesPage() {
-  const [spaces, setSpaces] = React.useState<Space[]>([]);
-  const [pages, setPages] = React.useState<SpacePage[]>([]);
-  const [loading, setLoading] = React.useState(true);
+interface SpacesPageProps {
+  sharedSpaces?: any[];
+  sharedPages?: any[];
+  sharedSpacesLoading?: boolean;
+}
+
+export function SpacesPage({
+  sharedSpaces,
+  sharedPages,
+  sharedSpacesLoading
+}: SpacesPageProps = {}) {
+  const [spaces, setSpaces] = React.useState<Space[]>(sharedSpaces || []);
+  const [pages, setPages] = React.useState<SpacePage[]>(sharedPages || []);
+  const [loading, setLoading] = React.useState(
+    sharedSpacesLoading !== undefined ? sharedSpacesLoading : ((sharedSpaces && sharedPages) ? false : true)
+  );
   const [activeTab, setActiveTab] = React.useState<"all" | "favorites" | "archived">("all");
   const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -275,8 +288,8 @@ export function SpacesPage() {
   const fetchAllData = React.useCallback(async () => {
     try {
       const [spacesRes, pagesRes] = await Promise.all([
-        fetch("/api/spaces"),
-        fetch("/api/spaces/pages")
+        fetchWithTimeout("/api/spaces"),
+        fetchWithTimeout("/api/spaces/pages")
       ]);
 
       if (spacesRes.ok && pagesRes.ok) {
@@ -302,8 +315,14 @@ export function SpacesPage() {
   }, []);
 
   React.useEffect(() => {
+    if (sharedSpaces && sharedPages) {
+      setSpaces(sharedSpaces);
+      setPages(sharedPages);
+      setLoading(false);
+      return;
+    }
     void fetchAllData();
-  }, [fetchAllData]);
+  }, [fetchAllData, sharedSpaces, sharedPages]);
 
   // Seeding helper
   const seedDefaultSpacesAndPages = async () => {
@@ -348,8 +367,8 @@ export function SpacesPage() {
 
       // Refetch
       const [spacesRes, pagesRes] = await Promise.all([
-        fetch("/api/spaces"),
-        fetch("/api/spaces/pages")
+        fetchWithTimeout("/api/spaces"),
+        fetchWithTimeout("/api/spaces/pages")
       ]);
       if (spacesRes.ok && pagesRes.ok) {
         const spacesData = await spacesRes.json();

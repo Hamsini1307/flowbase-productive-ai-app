@@ -60,11 +60,23 @@ const noteColors = [
 
 const noteIcons = ["📝", "💡", "📘", "📋", "🎯", "🚀", "🎨", "🏠", "💻", "💼"];
 
-export function NotesPage() {
-  const [notesList, setNotesList] = React.useState<Note[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = React.useState<string | null>(null);
+interface NotesPageProps {
+  sharedNotes?: any[];
+  sharedNotesLoading?: boolean;
+}
+
+export function NotesPage({
+  sharedNotes,
+  sharedNotesLoading
+}: NotesPageProps = {}) {
+  const [notesList, setNotesList] = React.useState<Note[]>(sharedNotes || []);
+  const [selectedNoteId, setSelectedNoteId] = React.useState<string | null>(
+    sharedNotes && sharedNotes.length > 0 ? (sharedNotes.find((n: any) => !n.isTrash)?.id || null) : null
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(
+    sharedNotesLoading !== undefined ? sharedNotesLoading : (sharedNotes ? false : true)
+  );
   const [saving, setSaving] = React.useState(false);
   const [showTrashOnly, setShowTrashOnly] = React.useState(false);
   const [activeNoteMenu, setActiveNoteMenu] = React.useState<string | null>(null);
@@ -78,6 +90,16 @@ export function NotesPage() {
 
   // Load Notes
   React.useEffect(() => {
+    if (sharedNotes) {
+      setNotesList(sharedNotes);
+      if (sharedNotes.length > 0 && !selectedNoteId) {
+        const active = sharedNotes.find((n: any) => !n.isTrash);
+        if (active) setSelectedNoteId(active.id);
+      }
+      setLoading(false);
+      return;
+    }
+
     async function fetchNotes() {
       try {
         const res = await fetch("/api/notes");
@@ -97,7 +119,7 @@ export function NotesPage() {
       }
     }
     void fetchNotes();
-  }, []);
+  }, [sharedNotes]);
 
   const activeNote = React.useMemo(() => {
     return notesList.find((n) => n.id === selectedNoteId) || null;
